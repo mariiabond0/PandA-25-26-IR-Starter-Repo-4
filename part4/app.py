@@ -75,13 +75,34 @@ def print_results(query: str, results, highlight: bool):
 
 def combine_results(result1, result2):
     # ToDo 1) Copy your solution from exercise 3
-    combined = result1
+    combined = dict(result1)
+    combined["matches"] = result1["matches"] + result2["matches"]
+    combined["title_spans"] = result1["title_spans"] + result2["title_spans"]
 
+    lines_by_no = {}
+    for l_match in result1["line_matches"]:
+        line_no = l_match["line_no"]
+        lines_by_no[line_no] = l_match
+
+    for l_match in result2["line_matches"]:
+        line_no = l_match["line_no"]
+        if line_no in lines_by_no:
+            already_spans = lines_by_no[line_no]["spans"]
+            new_spans = l_match["spans"]
+            merged_spans = already_spans + new_spans
+            merged_spans.sort()
+            lines_by_no[line_no]["spans"] = merged_spans
+        else:
+            lines_by_no[line_no] = l_match
+
+    combined["title_spans"].sort()  # changed a bit, since they could be unsorted
+    combined["line_matches"] = [lines_by_no[line_no] for line_no in sorted(lines_by_no.keys())]
     return combined
 
 
 def main() -> None:
     # ToDo 2 - Part 1 - Introduce a new variable to store the current search mode
+    searchmode = "AND"
     highlight = True
     print(BANNER)
     print()  # blank line after banner
@@ -111,6 +132,15 @@ def main() -> None:
                     print("Usage: :highlight on|off")
                 continue
             # ToDo 2 - Part 1 - Copy the logic from the highlight feature and adapt it for the search-mode
+            if raw.startswith(":search-mode"):
+                parts = raw.split()
+                if len(parts) == 2 and parts[1].upper() in ("AND", "OR"):
+                    searchmode = parts[1].upper()
+                    print("Search mode set to", searchmode)
+                else:
+                    print("Usage: :search-mode AND|OR")
+                continue
+            
             print("Unknown command. Type :help for commands.")
             continue
 
@@ -118,7 +148,7 @@ def main() -> None:
         combined_results = []
 
         #  ToDo 1) Copy your solution from exercise 3
-        words = raw #  ... your code here ...
+        words = raw.split()  #  ... your code here ...
 
         for word in words:
             # Searching for the word in all sonnets
@@ -135,12 +165,17 @@ def main() -> None:
                     result = results[i]
 
                     # ToDo 2 - Part 2: Here you have to find a way to extend for logical OR searches
-                    if combined_result["matches"] > 0 and result["matches"] > 0:
-                        # Only if we have matches in both results, we consider the sonnet (logical AND!)
-                        combined_results[i] = combine_results(combined_result, result)
+                    if searchmode == "AND":
+                        if combined_result["matches"] > 0 and result["matches"] > 0:
+                            combined_results[i] = combine_results(combined_result, result)
+                        else:
+                            # Not in both. No match!
+                            combined_result["matches"] = 0
+                            combined_result["title_spans"] = []
+                            combined_result["line_matches"] = []
+                            combined_results[i] = combined_result
                     else:
-                        # Not in both. No match!
-                        combined_result["matches"] = 0
+                        combined_results[i] = combine_results(combined_result, result)
 
         print_results(raw, combined_results, highlight)
 
