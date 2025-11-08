@@ -169,7 +169,6 @@ def main() -> None:
                         if combined_result["matches"] > 0 and result["matches"] > 0:
                             combined_results[i] = combine_results(combined_result, result)
                         else:
-                            # Not in both. No match!
                             combined_result["matches"] = 0
                             combined_result["title_spans"] = []
                             combined_result["line_matches"] = []
